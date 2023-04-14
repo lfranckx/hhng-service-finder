@@ -38,6 +38,9 @@
     <body>
         <div id="map"></div>
         <script>
+            // Global variable for handling opening and closing windows
+            let openInfoWindow = null;
+
             async function createMarkerFromAddress(map, address, content, setVisible = true) {
                 const geocoder = new google.maps.Geocoder();
 
@@ -67,7 +70,11 @@
                     });
 
                     marker.addListener("click", () => {
+                        if (openInfoWindow) {
+                            openInfoWindow.close();
+                        }
                         infoWindow.open(map, marker);
+                        openInfoWindow = infoWindow;
                     });
                     return { marker, infoWindow };
                 } catch (error) {
