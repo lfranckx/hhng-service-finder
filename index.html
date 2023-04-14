@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC0lT-ulZjyaKKQI4ECtOmzPILwp1ewv10&callback=initMap"></script>
+        <style>
+            #map {
+                height: 100%;
+            }
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .info-window {
+                display: block;
+            }
+            .info-window h3 {
+                font-size: 1.6rem;
+            }
+            .info-window p {
+                font-size: 1.2rem;
+            }
+            .gm-ui-hover-effect {
+                margin: 10px !important;
+            }
+            .gm-ui-hover-effect span {
+                margin: 0 !important;
+            }
+            .gm-ui-hover-effect, .gm-ui-hover-effect span {
+                font-size: 1rem;
+                width: 32px !important;
+                height: 32px !important;
+            }
+        </style>
+        <title>Stylist Locator</title>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script>
+            async function createMarkerFromAddress(map, address, content, setVisible = true) {
+                const geocoder = new google.maps.Geocoder();
+
+                const getLocationFromAddress = (address) => {
+                    return new Promise((resolve, reject) => {
+                        geocoder.geocode({ address }, (results, status) => {
+                            if (status === "OK") {
+                                resolve(results[0].geometry.location);
+                            } else {
+                                reject(new Error(`Geocode failed for address: ${address}, status: ${status}`));
+                            }
+                        });
+                    });
+                };
+
+                try {
+                    const location = await getLocationFromAddress(address);
+                    const marker = new google.maps.Marker({
+                        position: location,
+                        map: map,
+                        visible: setVisible,
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: content,
+                    });
+
+                    marker.addListener("click", () => {
+                        infoWindow.open(map, marker);
+                    });
+                    return { marker, infoWindow };
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            // Store data for locations by state
+            function getAddressByStateName(stateName) {
+                const addressData = {
+                    "Arizona": [
+                        {
+                            name: "Desert Hair Den",
+                            address: "5678 Camelback Rd, Phoenix, AZ 85018",
+                            phone: "(480) 222-3333",
+                            description: "Chic hair salon in Phoenix with skilled stylists and a comfortable atmosphere."
+                        }
+                    ],
+                    "California": [
+                        {
+                            name: "Bay Cuts",
+                            address: "350 California St, San Francisco, CA 94104",
+                            phone: "(310) 555-1234",
+                            description: "Upscale hair salon offering haircuts, color treatments, and styling services."
+                        },
+                        {
+                            name: "Hills Salon",
+                            address: "5678 Wilshire Blvd, Beverly Hills, CA 90210",
+                            phone: "(310) 555-5678",
+                            description: "Luxury salon specializing in hair extensions and customized color treatments."
+                        }
+                    ],
+                    "Colorado": [
+                        {
+                            name: "Mile High Hair",
+                            address: "7890 Broadway St, Denver, CO 80203",
+                            phone: "(303) 444-5555",
+                            description: "Top-rated hair salon in Denver, with experienced stylists and a relaxing environment."
+                        }
+                    ],
+                    "Florida": [
+                        {
+                            name: "Sunny Styles",
+                            address: "1234 Beach Dr, Miami, FL 33139",
+                            phone: "(305) 555-6666",
+                            description: "Upscale salon located in Miami Beach, specializing in creative hairstyles."
+                        }
+                    ],
+                    "Illinois": [
+                        {
+                            name: "Logan Parlor",
+                            address: "3251 W Fullerton Ave, Chicago, IL 60647",
+                            phone: "(872) 206-2682",
+                            description: "Hip, high-end hair salon with cuts & advanced color treatments, plus beard grooming & facial waxing."
+                        }
+                    ],
+                    "Nevada": [
+                        {
+                            name: "Vegas Cuts",
+                            address: "789 Las Vegas Blvd, Las Vegas, NV 89109",
+                            phone: "(702) 111-2222",
+                            description: "Stylish hair salon offering a variety of services for both men and women."
+                        }
+                    ],
+                    "New York": [
+                        {
+                            name: "Empire Hair Studio",
+                            address: "567 Manhattan Ave, New York, NY 10036",
+                            phone: "(212) 777-8888",
+                            description: "Elegant hair salon in the heart of Manhattan, offering a range of services and treatments."
+                        }
+                    ],
+                    "Ohio": [
+                        {
+                            name: "Columbus Hair Co.",
+                            address: "123 High St, Columbus, OH 43215",
+                            phone: "(614) 555-6666",
+                            description: "Popular hair salon in Columbus, offering haircuts and color treatments for all ages."
+                        }
+                    ],
+                    "Oregon": [
+                        {
+                            name: "Portland Hair Haven",
+                            address: "7890 Hawthorne Blvd, Portland, OR 97214",
+                            phone: "(503) 444-5555",
+                            description: "Friendly and professional hair salon with experienced stylists and quality products."
+                        }
+                    ],
+                    "Texas": [
+                        {
+                            name: "Texas Salon 1",
+                            address: "123 Austin St, Houston, TX 77002",
+                            phone: "(713) 123-4567",
+                            description: "Relaxing hair salon offering top-quality services in the heart of Houston."
+                        },
+                        {
+                            name: "Dallas Styling",
+                            address: "456 Main St, Dallas, TX 75201",
+                            phone: "(214) 987-6543",
+                            description: "Modern hair salon in Dallas providing trendy haircuts and color treatments."
+                        }
+                    ],
+                    "Washington": [
+                        {
+                            name: "Seattle Hair House",
+                            address: "1234 Pike St, Seattle, WA 98101",
+                            phone: "(206) 333-4444",
+                            description: "Stylish hair salon in downtown Seattle offering haircuts, color treatments, and more."
+                        }
+                    ],
+                    // Add more states and their addresses here
+                };
+
+                return addressData[stateName] || [];
+            }
+
+            async function initMapAsync() {
+                await new Promise((resolve) => {
+                    window.initMap = () => {
+                        resolve();
+                    };
+                });
+
+                const position = { lat: 37.0902, lng: -95.7129 };
+
+                const map = new google.maps.Map(document.getElementById("map"), {
+                    zoom: 4,
+                    center: position,
+                });
+
+                // Load the US states GeoJSON data
+                map.data.loadGeoJson("https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json");
+
+                // Create an array for all markers within a state
+                const markersByState = new Map();
+
+                // Change the state color on mouseover
+                map.data.addListener("mouseover", async (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    const stateColor = getRandomColor();
+                    map.data.overrideStyle(event.feature, {
+                        fillColor: stateColor,
+                    });
+                    animateFillOpacity(event.feature, 0, 0.5, 260);
+
+                    // Loop through all markers in the state to display business info
+                    if (!markersByState.has(stateName)) {
+                        const locations = getAddressByStateName(stateName);
+                        const markers = [];
+                        for (const location of locations) {
+                            const { marker, infoWindow } = await createMarkerFromAddress(
+                                map,
+                                location.address,
+                                `<div class="info-window">
+                                    <h3>${location.name}</h3>
+                                    <p>${location.address}</p>
+                                    <p>Phone: ${location.phone}</p>
+                                    <p>${location.description}</p>
+                                </div>`,
+                                false
+                            );
+                            if (marker) {
+                                markers.push({ marker, infoWindow });
+                            }
+                        }
+                        markersByState.set(stateName, markers);
+                    }
+
+                    const markers = markersByState.get(stateName);
+                    for (const { marker } of markers) {
+                        marker.setVisible(true);
+                    }
+                });
+
+                // Close Info Window when the state is clicked
+                map.data.addListener("click", (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    const markers = markersByState.get(stateName);
+                    if (markers) {
+                        for (const { marker, infoWindow } of markers) {
+                            infoWindow.close();
+                        }
+                    }
+                });
+
+                // Restore the state color on mouseout
+                map.data.addListener("mouseout", (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    animateFillOpacity(event.feature, 0.5, 0, 260);
+
+                    const markers = markersByState.get(stateName);
+                    if (markers) {
+                        for (const { marker } of markers) {
+                            marker.setVisible(false);
+                        }
+                    }
+                });
+
+                const colors = ["#B57EDC", "#4A8122", "#FFF431", "#9B59D0", "#0097D8"];
+
+                // Function to return a random color
+                function getRandomColor() {
+                    return colors[Math.floor(Math.random() * colors.length)];
+                }
+
+                // Style the states
+                map.data.setStyle((feature) => {
+                    return {
+                        fillColor: "transparent",
+                        strokeColor: "#000",
+                        strokeWeight: 1,
+                        fillOpacity: 0,
+                    };
+                });
+
+                // Animate the fill opacity
+                function animateFillOpacity(feature, start, end, duration) {
+                    const startTime = new Date().getTime();
+                    const interpolate = (current, goal, progress) => {
+                        return current + (goal - current) * progress;
+                    };
+
+                    function step() {
+                        const currentTime = new Date().getTime();
+                        const progress = Math.min((currentTime - startTime) / duration, 1);
+                        const newOpacity = interpolate(start, end, progress);
+
+                        map.data.overrideStyle(feature, {
+                            fillOpacity: newOpacity,
+                        });
+
+                        if (progress < 1) {
+                            requestAnimationFrame(step);
+                        }
+                    }
+
+                    step();
+                }
+            }
+
+            initMapAsync();
+        </script>
+    </body>
+</html>
