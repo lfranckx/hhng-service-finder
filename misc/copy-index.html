@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC0lT-ulZjyaKKQI4ECtOmzPILwp1ewv10&callback=initMap"></script>
+        <style>
+            #map {
+                height: 100%;
+            }
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .info-window {
+                display: block;
+            }
+            .info-window h3 {
+                font-size: 1.6rem;
+            }
+            .info-window p {
+                font-size: 1.2rem;
+            }
+            .gm-ui-hover-effect {
+                margin: 10px !important;
+            }
+            .gm-ui-hover-effect span {
+                margin: 0 !important;
+            }
+            .gm-ui-hover-effect, .gm-ui-hover-effect span {
+                font-size: 1rem;
+                width: 32px !important;
+                height: 32px !important;
+            }
+
+            @media only screen and (max-width: 749px) {
+                .info-window h3 {
+                    font-size: 1.2rem;
+                }
+                .info-window p {
+                    font-size: 1rem;
+                }
+            }
+        </style>
+        <title>Stylist Locator</title>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script>
+            async function fetchStylistsFromWixAPI() {
+                const response = await fetch("https://www.hairhasnogender.com/_functions/stylistsAPI");
+                const data = await response.json();
+                console.log('wix data...', data);
+                return data;
+            }
+
+            // Global variable for handling opening and closing windows
+            let openInfoWindow = null;
+
+            async function createMarkerFromAddress(map, address, content, setVisible = true) {
+                const geocoder = new google.maps.Geocoder();
+
+                const getLocationFromAddress = (address) => {
+                    return new Promise((resolve, reject) => {
+                        geocoder.geocode({ address }, (results, status) => {
+                            if (status === "OK") {
+                                resolve(results[0].geometry.location);
+                            } else {
+                                reject(new Error(`Geocode failed for address: ${address}, status: ${status}`));
+                            }
+                        });
+                    });
+                };
+
+                try {
+                    const location = await getLocationFromAddress(address);
+                    const marker = new google.maps.Marker({
+                        position: location,
+                        map: map,
+                        visible: setVisible,
+                        icon: 'https://lfranckx.github.io/hhng-service-finder/marker.png'
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: content,
+                    });
+
+                    marker.addListener("click", () => {
+                        if (openInfoWindow) {
+                            openInfoWindow.close();
+                        }
+                        infoWindow.open(map, marker);
+                        openInfoWindow = infoWindow;
+                    });
+                    return { marker, infoWindow };
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            // Store data for locations by state
+            // Add more states and their addresses here
+            function getAddressByStateName(stateName) {
+                const addressData = {
+                    "Alabama": [
+                        {
+                            name: "Southern Style Salon",
+                            address: "1001 Market St, Birmingham, AL 35203",
+                            phone: "(205) 555-1234",
+                            description: "A trendy hair salon in Birmingham, offering haircuts, color treatments, and styling services."
+                        },
+                        {
+                            name: "Alabama Style Studio",
+                            address: "1234 Alabama St, Birmingham, AL 35203",
+                            phone: "(205) 555-1234",
+                            description: "A trendy hair salon located in the heart of Birmingham, offering a wide range of styling services."
+                        }
+                    ],
+                    "Alaska": [
+                        {
+                            name: "Arctic Hair Studio",
+                            address: "5678 Polar Ave, Anchorage, AK 99501",
+                            phone: "(907) 555-9876",
+                            description: "A cozy hair salon in Anchorage, providing warm and friendly service to locals and tourists alike."
+                        }
+                    ],
+                    "Arizona": [
+                        {
+                            name: "Desert Hair Den",
+                            address: "5678 Camelback Rd, Phoenix, AZ 85018",
+                            phone: "(480) 222-3333",
+                            description: "Chic hair salon in Phoenix with skilled stylists and a comfortable atmosphere."
+                        }
+                    ],
+                    "Arkansas": [
+                        {
+                            name: "Arkansas Hair Retreat",
+                            address: "1234 River St, Little Rock, AR 72201",
+                            phone: "(501) 555-6789",
+                            description: "A modern hair salon in Little Rock, specializing in the latest hair trends and styles."
+                        }
+                    ],
+                    "California": [
+                        {
+                            name: "Bay Cuts",
+                            address: "350 California St, San Francisco, CA 94104",
+                            phone: "(310) 555-1234",
+                            description: "Upscale hair salon offering haircuts, color treatments, and styling services."
+                        },
+                        {
+                            name: "Hills Salon",
+                            address: "5678 Wilshire Blvd, Beverly Hills, CA 90210",
+                            phone: "(310) 555-5678",
+                            description: "Luxury salon specializing in hair extensions and customized color treatments."
+                        }
+                    ],
+                    "Colorado": [
+                        {
+                            name: "Mile High Hair",
+                            address: "7890 Broadway St, Denver, CO 80203",
+                            phone: "(303) 444-5555",
+                            description: "Top-rated hair salon in Denver, with experienced stylists and a relaxing environment."
+                        }
+                    ],
+                    "Connecticut": [
+                        {
+                            name: "Connecticut Hair Boutique",
+                            address: "1234 Main St, Hartford, CT 06103",
+                            phone: "(860) 555-2468",
+                            description: "Elegant hair salon located in downtown Hartford, offering personalized hair care services."
+                        }
+                    ],
+                    "Delaware": [
+                        {
+                            name: "Delaware Hair Studio",
+                            address: "5678 Delaware Ave, Wilmington, DE 19801",
+                            phone: "(302) 555-1357",
+                            description: "Contemporary hair salon in Wilmington, providing stylish haircuts and color treatments."
+                        }
+                    ],
+                    "District of Columbia": [
+                        {
+                            name: "Capital Hair House",
+                            address: "1234 Constitution Ave NW, Washington, DC 20004",
+                            phone: "(202) 555-9012",
+                            description: "A fashionable hair salon located in the heart of DC"
+                        }
+                    ],
+                    "Florida": [
+                        {
+                            name: "Sunny Styles",
+                            address: "1234 Beach Dr, Miami, FL 33139",
+                            phone: "(305) 555-6666",
+                            description: "Upscale salon located in Miami Beach, specializing in creative hairstyles."
+                        }
+                    ],
+                    "Illinois": [
+                        {
+                            name: "Logan Parlor",
+                            address: "3251 W Fullerton Ave, Chicago, IL 60647",
+                            phone: "(872) 206-2682",
+                            description: "Hip, high-end hair salon with cuts & advanced color treatments, plus beard grooming & facial waxing."
+                        }
+                    ],
+                    "Georgia": [
+                        {
+                            name: "Peachtree Hair Studio",
+                            address: "2002 Peachtree St NE, Atlanta, GA 30309",
+                            phone: "(404) 555-2345",
+                            description: "A modern hair salon in Atlanta, specializing in personalized color treatments and hair extensions."
+                        }
+                    ],
+                    "Idaho": [
+                        {
+                            name: "Boise Hair Haven",
+                            address: "3003 W State St, Boise, ID 83702",
+                            phone: "(208) 555-3456",
+                            description: "A popular hair salon in Boise, offering a relaxing environment and experienced stylists."
+                        }
+                    ],
+                    "Indiana": [
+                        {
+                            name: "Hoosier Hair Studio",
+                            address: "4004 Massachusetts Ave, Indianapolis, IN 46218",
+                            phone: "(317) 555-4567",
+                            description: "A friendly and professional hair salon in Indianapolis, providing high-quality haircuts and color treatments."
+                        }
+                    ],
+                    "Iowa": [
+                        {
+                            name: "Iowa Hair Loft",
+                            address: "5678 Corn St, Des Moines, IA 50309",
+                            phone: "(515) 555-1313",
+                            description: "Friendly hair salon in Des Moines, providing haircuts, color treatments, and styling services."
+                        }
+                    ],
+                    "Kansas": [
+                        {
+                            name: "Sunflower Salon",
+                            address: "6789 Main St, Wichita, KS 67202",
+                            phone: "(316) 555-4444",
+                            description: "A top-rated hair salon in Wichita, with skilled stylists and a welcoming atmosphere."
+                        },
+                        {
+                            name: "Kansas City Hair House",
+                            address: "7890 State Ave, Kansas City, KS 66112",
+                            phone: "(913) 555-5555",
+                            description: "A modern hair salon in Kansas City, providing a range of services including haircuts, color treatments, and more."
+                        }
+                    ],
+                    "Kentucky": [
+                        {
+                            name: "Bluegrass Salon",
+                            address: "5005 Main St, Louisville, KY 40202",
+                            phone: "(502) 555-5678",
+                            description: "A stylish hair salon in Louisville, offering trendy haircuts, color treatments, and other services."
+                        }
+                    ],
+                    "Louisiana": [
+                        {
+                            name: "Cajun Cuts",
+                            address: "9012 Bayou Rd, New Orleans, LA 70112",
+                            phone: "(504) 555-1414",
+                            description: "A lively hair salon in the heart of New Orleans, offering a wide range of hair care services."
+                        }
+                    ],
+                    "Maine": [
+                        {
+                            name: "Pine Tree Parlor",
+                            address: "6006 Forest Ave, Portland, ME 04101",
+                            phone: "(207) 555-6789",
+                            description: "A top-rated hair salon in Portland, with skilled stylists and a welcoming atmosphere."
+                        }
+                    ],
+                    "Maryland": [
+                        {
+                            name: "Chesapeake Hair Studio",
+                            address: "7890 Harbor St, Baltimore, MD 21202",
+                            phone: "(410) 555-1616",
+                            description: "A modern hair salon in Baltimore, providing professional hair care services in a relaxing environment."
+                        }
+                    ],
+                    "Massachusetts": [
+                        {
+                            name: "Bay State Salon",
+                            address: "1010 Commonwealth Ave, Boston, MA 02215",
+                            phone: "(617) 555-0123",
+                            description: "A popular hair salon in Boston, offering a relaxing environment and experienced stylists."
+                        }
+                    ],
+                    "Missouri": [
+                        {
+                            name:"Show Me Style",
+                            address: "1111 Grand Blvd, Kansas City, MO 64106",
+                            phone: "(816) 555-2345",
+                            description: "A friendly and professional hair salon in Kansas City, providing high-quality haircuts and color treatments."
+                        }
+                    ],
+                    "Michigan": [
+                        {
+                            name: "Great Lakes Hair Studio",
+                            address: "7007 Woodward Ave, Detroit, MI 48202",
+                            phone: "(313) 555-7890",
+                            description: "A modern hair salon in Detroit, providing a range of services including haircuts, color treatments, and more."
+                        }
+                    ],
+                    "Mississippi": [
+                        {
+                            name: "Magnolia Salon",
+                            address: "8008 Magnolia St, Jackson, MS 39202",
+                            phone: "(601) 555-8901",
+                            description: "A trendy hair salon in Jackson, offering haircuts, color treatments, and styling services."
+                        }
+                    ],
+                    "Montana": [
+                        {
+                            name: "Big Sky Salon",
+                            address: "1717 Montana Ave, Billings, MT 59101",
+                            phone: "(406) 555-8901",
+                            description: "A popular hair salon in Billings, offering a relaxing environment and experienced stylists."
+                        }
+                    ],
+                    "Minnesota": [
+                        {
+                            name: "North Star Hair Studio",
+                            address: "1818 Hennepin Ave, Minneapolis, MN 55403",
+                            phone: "(612) 555-9012",
+                            description: "A friendly and professional hair salon in Minneapolis, providing high-quality haircuts and color treatments."
+                        }
+                    ],
+                    "Nebraska": [
+                        {
+                            name: "Cornhusker Cuts",
+                            address: "4567 O St, Lincoln, NE 68508",
+                            phone: "(402) 555-2222",
+                            description: "A friendly and professional hair salon in Lincoln, providing high-quality haircuts and color treatments."
+                        },
+                        {
+                            name: "Omaha Hair Studio",
+                            address: "5678 Maple St, Omaha, NE 68104",
+                            phone: "(402) 555-3333",
+                            description: "A stylish hair salon in Omaha, offering trendy haircuts, color treatments, and other services."
+                        }
+                    ],
+                    "Nevada": [
+                        {
+                            name: "Vegas Cuts",
+                            address: "789 Las Vegas Blvd, Las Vegas, NV 89109",
+                            phone: "(702) 111-2222",
+                            description: "Stylish hair salon offering a variety of services for both men and women."
+                        }
+                    ],
+                    "New Jersey": [
+                        {
+                            name: "Jersey Shore Salon",
+                            address: "1234 Boardwalk Ave, Atlantic City, NJ 08401",
+                            phone: "(609) 555-1717",
+                            description: "A trendy hair salon located steps from the beach, offering haircuts, color treatments, and styling services."
+                        },
+                        {
+                            name: "Garden State Hair House",
+                            address: "5678 Bloomfield Ave, Newark, NJ 07104",
+                            phone: "(973) 555-1818",
+                            description: "Contemporary hair salon in Newark, providing stylish haircuts, color treatments, and hair care services."
+                        }
+                    ],
+                    "New Mexico": [
+                        {
+                            name: "Southwest Hair Haven",
+                            address: "1234 Adobe St, Albuquerque, NM 87102",
+                            phone: "(505) 555-1212",
+                            description: "A unique hair salon with Southwestern flair, offering a variety of hair care services."
+                        }
+                    ],
+                    "New York": [
+                        {
+                            name: "Empire Hair Studio",
+                            address: "567 Manhattan Ave, New York, NY 10036",
+                            phone: "(212) 777-8888",
+                            description: "Elegant hair salon in the heart of Manhattan, offering a range of services and treatments."
+                        }
+                    ],
+                    "North Carolina": [
+                        {
+                        name: "Tar Heel Hair Studio",
+                        address: "1212 Fayetteville St, Raleigh, NC 27601",
+                        phone: "(919) 555-3456",
+                        description: "A stylish hair salon in Raleigh, offering trendy haircuts, color treatments, and other services."
+                        }
+                    ],
+                    "North Dakota": [
+                        {
+                            name: "Peace Garden Parlor",
+                            address: "1919 Broadway, Fargo, ND 58102",
+                            phone: "(701) 555-0123",
+                            description: "A stylish hair salon in Fargo, offering trendy haircuts, color treatments, and other services."
+                        }
+                    ],
+                        "South Dakota": [
+                        {
+                            name: "Mount Rushmore Hair Studio",
+                            address: "2020 Main St, Rapid City, SD 57701",
+                            phone: "(605) 555-2345",
+                            description: "A top-rated hair salon in Rapid City, with skilled stylists and a welcoming atmosphere."
+                        }
+                    ],
+                    "Ohio": [
+                        {
+                            name: "Columbus Hair Co.",
+                            address: "123 High St, Columbus, OH 43215",
+                            phone: "(614) 555-6666",
+                            description: "Popular hair salon in Columbus, offering haircuts and color treatments for all ages."
+                        }
+                    ],
+                    "Oregon": [
+                        {
+                            name: "Portland Hair Haven",
+                            address: "7890 Hawthorne Blvd, Portland, OR 97214",
+                            phone: "(503) 444-5555",
+                            description: "Friendly and professional hair salon with experienced stylists and quality products."
+                        }
+                    ],
+                    "Pennsylvania": [
+                        {
+                            name: "Keystone Hair Studio",
+                            address: "9009 Market St, Philadelphia, PA 19103",
+                            phone: "(215) 555-9012",
+                            description: "A modern hair salon in Philadelphia, specializing in personalized color treatments and hair extensions."
+                        }
+                    ],
+                    "South Carolina": [
+                        {
+                            name: "Palmetto Parlor",
+                            address: "1313 Gervais St, Columbia, SC 29201",
+                            phone: "(803) 555-4567",
+                            description: "A top-rated hair salon in Columbia, with skilled stylists and a welcoming atmosphere."
+                        }
+                    ],
+                    "Tennessee": [
+                        {
+                            name: "Volunteer Hair Studio",
+                            address: "1414 Church St, Nashville, TN 37203",
+                            phone: "(615) 555-5678",
+                            description: "A modern hair salon in Nashville, providing a range of services including haircuts, color treatments, and more."
+                        }
+                    ],
+                    "Texas": [
+                        {
+                            name: "Texas Salon 1",
+                            address: "123 Austin St, Houston, TX 77002",
+                            phone: "(713) 123-4567",
+                            description: "Relaxing hair salon offering top-quality services in the heart of Houston."
+                        },
+                        {
+                            name: "Dallas Styling",
+                            address: "456 Main St, Dallas, TX 75201",
+                            phone: "(214) 987-6543",
+                            description: "Modern hair salon in Dallas providing trendy haircuts and color treatments."
+                        }
+                    ],
+                    "Utah": [
+                        {
+                            name: "Mountain Style Salon",
+                            address: "1234 Alpine Dr, Salt Lake City, UT 84101",
+                            phone: "(801) 555-1234",
+                            description: "A trendy hair salon offering haircuts, color treatments, and styling services in the heart of Salt Lake City."
+                        },
+                        {
+                            name: "Utah Hair Studio",
+                            address: "2345 Canyon Rd, Provo, UT 84604",
+                            phone: "(801) 555-5678",
+                            description: "A modern hair salon specializing in personalized color treatments and hair extensions in Provo."
+                        }
+                    ],
+                    "Virginia": [
+                        {
+                            name: "Old Dominion Salon",
+                            address: "1515 Main St, Richmond, VA 23219",
+                            phone: "(804) 555-6789",
+                            description: "A trendy hair salon in Richmond, offering haircuts, color treatments, and styling services."
+                        }
+                    ],
+                    "Washington": [
+                        {
+                            name: "Seattle Hair House",
+                            address: "1234 Pike St, Seattle, WA 98101",
+                            phone: "(206) 333-4444",
+                            description: "Stylish hair salon in downtown Seattle offering haircuts, color treatments, and more."
+                        }
+                    ],
+                    "West Virginia": [
+                        {
+                            name: "Mountain Hair Retreat",
+                            address: "3456 Appalachian Dr, Charleston, WV 25301",
+                            phone: "(304) 555-1515",
+                            description: "A cozy hair salon in Charleston, specializing in haircuts, styling, and color treatments."
+                        }
+                    ],
+                    "Wisconsin": [
+                        {
+                            name: "Badger Hair Studio",
+                            address: "1616 Wisconsin Ave, Milwaukee, WI 53202",
+                            phone: "(414) 555-7890",
+                            description: "A modern hair salon in Milwaukee, specializing in personalized color treatments and hair extensions."
+                        }
+                    ],
+                    "Wyoming": [
+                        {
+                            name: "Wyoming Hair Haven",
+                            address: "3456 Bison Blvd, Cheyenne, WY 82001",
+                            phone: "(307) 555-1111",
+                            description: "A popular hair salon in Cheyenne, offering a relaxing environment and experienced stylists."
+                        }
+                    ],
+                };
+
+                return addressData[stateName] || [];
+            }
+
+            async function initMapAsync() {
+                await new Promise((resolve) => {
+                    window.initMap = () => {
+                        resolve();
+                    };
+                });
+
+                const position = { lat: 37.0902, lng: -95.7129 };
+
+                const map = new google.maps.Map(document.getElementById("map"), {
+                    zoom: 4,
+                    center: position,
+                });
+
+                // Load the US states GeoJSON data
+                map.data.loadGeoJson("https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json");
+
+                // Create an array for all markers within a state
+                const markersByState = new Map();
+
+                // Change the state color on mouseover
+                map.data.addListener("mouseover", async (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    const stateColor = getRandomColor();
+                    map.data.overrideStyle(event.feature, {
+                        fillColor: stateColor,
+                    });
+                    animateFillOpacity(event.feature, 0, 0.5, 260);
+
+                    // Loop through all markers in the state to display business info
+                    if (!markersByState.has(stateName)) {
+                        const locations = getAddressByStateName(stateName);
+                        const markers = [];
+                        for (const location of locations) {
+                            const { marker, infoWindow } = await createMarkerFromAddress(
+                                map,
+                                location.address,
+                                `<div class="info-window">
+                                    <h3>${location.name}</h3>
+                                    <p>${location.address}</p>
+                                    <p>Phone: ${location.phone}</p>
+                                    <p>${location.description}</p>
+                                </div>`,
+                                false
+                            );
+                            if (marker) {
+                                markers.push({ marker, infoWindow });
+                            }
+                        }
+                        markersByState.set(stateName, markers);
+                    }
+
+                    const markers = markersByState.get(stateName);
+                    for (const { marker } of markers) {
+                        marker.setVisible(true);
+                    }
+                });
+
+                // Close Info Window when the state is clicked
+                map.data.addListener("click", (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    const markers = markersByState.get(stateName);
+                    if (markers) {
+                        for (const { marker, infoWindow } of markers) {
+                            infoWindow.close();
+                        }
+                    }
+                });
+
+                // Restore the state color on mouseout
+                map.data.addListener("mouseout", (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    animateFillOpacity(event.feature, 0.5, 0, 260);
+
+                    const markers = markersByState.get(stateName);
+                    if (markers) {
+                        for (const { marker } of markers) {
+                            marker.setVisible(false);
+                        }
+                    }
+                });
+
+                const colors = ["#B57EDC", "#4A8122", "#FFF431", "#9B59D0", "#0097D8"];
+
+                // Function to return a random color
+                function getRandomColor() {
+                    return colors[Math.floor(Math.random() * colors.length)];
+                }
+
+                // Style the states
+                map.data.setStyle((feature) => {
+                    return {
+                        fillColor: "transparent",
+                        strokeColor: "#000",
+                        strokeWeight: 1,
+                        fillOpacity: 0,
+                    };
+                });
+
+                // Animate the fill opacity
+                function animateFillOpacity(feature, start, end, duration) {
+                    const startTime = new Date().getTime();
+                    const interpolate = (current, goal, progress) => {
+                        return current + (goal - current) * progress;
+                    };
+
+                    function step() {
+                        const currentTime = new Date().getTime();
+                        const progress = Math.min((currentTime - startTime) / duration, 1);
+                        const newOpacity = interpolate(start, end, progress);
+
+                        map.data.overrideStyle(feature, {
+                            fillOpacity: newOpacity,
+                        });
+
+                        if (progress < 1) {
+                            requestAnimationFrame(step);
+                        }
+                    }
+
+                    step();
+                }
+            }
+
+            initMapAsync();
+        </script>
+    </body>
+</html>
