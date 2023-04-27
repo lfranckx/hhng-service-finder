@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC0lT-ulZjyaKKQI4ECtOmzPILwp1ewv10&callback=initMap"></script>
+        <style>
+            #map {
+                height: 100%;
+            }
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .info-window {
+                display: block;
+            }
+            .info-window h3 {
+                font-size: 1.6rem;
+            }
+            .info-window p {
+                font-size: 1.2rem;
+            }
+            .gm-ui-hover-effect {
+                margin: 10px !important;
+            }
+            .gm-ui-hover-effect span {
+                margin: 0 !important;
+            }
+            .gm-ui-hover-effect, .gm-ui-hover-effect span {
+                font-size: 1rem;
+                width: 32px !important;
+                height: 32px !important;
+            }
+
+            @media only screen and (max-width: 749px) {
+                .info-window h3 {
+                    font-size: 1.2rem;
+                }
+                .info-window p {
+                    font-size: 1rem;
+                }
+            }
+        </style>
+        <title>Stylist Locator</title>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script>
+            // Global variable for handling opening and closing windows
+            let openInfoWindow = null;
+
+            async function createMarkerFromAddress(map, address, content, setVisible = true) {
+                const geocoder = new google.maps.Geocoder();
+
+                const getLocationFromAddress = (address) => {
+                    return new Promise((resolve, reject) => {
+                        geocoder.geocode({ address }, (results, status) => {
+                            if (status === "OK") {
+                                resolve(results[0].geometry.location);
+                            } else {
+                                reject(new Error(`Geocode failed for address: ${address}, status: ${status}`));
+                            }
+                        });
+                    });
+                };
+
+                try {
+                    const location = await getLocationFromAddress(address);
+                    const marker = new google.maps.Marker({
+                        position: location,
+                        map: map,
+                        visible: setVisible,
+                        icon: 'https://lfranckx.github.io/hhng-service-finder/marker.png'
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: content,
+                    });
+
+                    marker.addListener("click", () => {
+                        if (openInfoWindow) {
+                            openInfoWindow.close();
+                        }
+                        infoWindow.open(map, marker);
+                        openInfoWindow = infoWindow;
+                    });
+                    return { marker, infoWindow };
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            // Store data for locations by state
+            // Add more states and their addresses here
+            function getAddressByStateName(stateName) {
+                const addressData = {
+                    "Wisconsin": [
+                        {
+                            name: "Badger Hair Studio",
+                            address: "1616 Wisconsin Ave, Milwaukee, WI 53202",
+                            phone: "(414) 555-7890",
+                            description: "A modern hair salon in Milwaukee, specializing in personalized color treatments and hair extensions."
+                        }
+                    ],
+                    "Wyoming": [
+                        {
+                            name: "Wyoming Hair Haven",
+                            address: "3456 Bison Blvd, Cheyenne, WY 82001",
+                            phone: "(307) 555-1111",
+                            description: "A popular hair salon in Cheyenne, offering a relaxing environment and experienced stylists."
+                        }
+                    ],
+                };
+
+                return addressData[stateName] || [];
+            }
+
+            async function initMapAsync() {
+                await new Promise((resolve) => {
+                    window.initMap = () => {
+                        resolve();
+                    };
+                });
+
+                const position = { lat: 37.0902, lng: -95.7129 };
+
+                const map = new google.maps.Map(document.getElementById("map"), {
+                    zoom: 4,
+                    center: position,
+                });
+
+                // Load the US states GeoJSON data
+                map.data.loadGeoJson("https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json");
+
+                // Create an array for all markers within a state
+                const markersByState = new Map();
+
+                // Change the state color on mouseover
+                map.data.addListener("mouseover", async (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    const stateColor = getRandomColor();
+                    map.data.overrideStyle(event.feature, {
+                        fillColor: stateColor,
+                    });
+                    animateFillOpacity(event.feature, 0, 0.5, 260);
+
+                    // Loop through all markers in the state to display business info
+                    if (!markersByState.has(stateName)) {
+                        const locations = getAddressByStateName(stateName);
+                        const markers = [];
+                        for (const location of locations) {
+                            const { marker, infoWindow } = await createMarkerFromAddress(
+                                map,
+                                location.address,
+                                `<div class="info-window">
+                                    <h3>${location.name}</h3>
+                                    <p>${location.address}</p>
+                                    <p>Phone: ${location.phone}</p>
+                                    <p>${location.description}</p>
+                                </div>`,
+                                false
+                            );
+                            if (marker) {
+                                markers.push({ marker, infoWindow });
+                            }
+                        }
+                        markersByState.set(stateName, markers);
+                    }
+
+                    const markers = markersByState.get(stateName);
+                    for (const { marker } of markers) {
+                        marker.setVisible(true);
+                    }
+                });
+
+                // Close Info Window when the state is clicked
+                map.data.addListener("click", (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    const markers = markersByState.get(stateName);
+                    if (markers) {
+                        for (const { marker, infoWindow } of markers) {
+                            infoWindow.close();
+                        }
+                    }
+                });
+
+                // Restore the state color on mouseout
+                map.data.addListener("mouseout", (event) => {
+                    const stateName = event.feature.getProperty("name");
+                    animateFillOpacity(event.feature, 0.5, 0, 260);
+
+                    const markers = markersByState.get(stateName);
+                    if (markers) {
+                        for (const { marker } of markers) {
+                            marker.setVisible(false);
+                        }
+                    }
+                });
+
+                const colors = ["#B57EDC", "#4A8122", "#FFF431", "#9B59D0", "#0097D8"];
+
+                // Function to return a random color
+                function getRandomColor() {
+                    return colors[Math.floor(Math.random() * colors.length)];
+                }
+
+                // Style the states
+                map.data.setStyle((feature) => {
+                    return {
+                        fillColor: "transparent",
+                        strokeColor: "#000",
+                        strokeWeight: 1,
+                        fillOpacity: 0,
+                    };
+                });
+
+                // Animate the fill opacity
+                function animateFillOpacity(feature, start, end, duration) {
+                    const startTime = new Date().getTime();
+                    const interpolate = (current, goal, progress) => {
+                        return current + (goal - current) * progress;
+                    };
+
+                    function step() {
+                        const currentTime = new Date().getTime();
+                        const progress = Math.min((currentTime - startTime) / duration, 1);
+                        const newOpacity = interpolate(start, end, progress);
+
+                        map.data.overrideStyle(feature, {
+                            fillOpacity: newOpacity,
+                        });
+
+                        if (progress < 1) {
+                            requestAnimationFrame(step);
+                        }
+                    }
+
+                    step();
+                }
+            }
+
+            initMapAsync();
+        </script>
+    </body>
+</html>
