@@ -139,48 +139,84 @@
                 markersByState.get(stylist.regionStateProvince).push({ marker, infoWindow });
             }
 
+            const colors = ["#B57EDC", "#4A8122", "#FFF431", "#9B59D0", "#0097D8"];
+
+            // Function to return a random color
+            function getRandomColor() {
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            // Animate the fill opacity
+            function animateFillOpacity(feature, start, end, duration) {
+                const startTime = new Date().getTime();
+                const interpolate = (current, goal, progress) => {
+                    return current + (goal - current) * progress;
+                };
+
+                function step() {
+                    const currentTime = new Date().getTime();
+                    const progress = Math.min((currentTime - startTime) / duration, 1);
+                    const newOpacity = interpolate(start, end, progress);
+
+                    map.data.overrideStyle(feature, {
+                        fillOpacity: newOpacity,
+                    });
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    }
+                }
+
+                step();
+            }
+
             map.data.addListener("mouseover", (event) => {
-            const stateName = event.feature.getProperty("name");
+                const stateName = event.feature.getProperty("name");
+                const stateColor = getRandomColor();
+                map.data.overrideStyle(event.feature, {
+                    fillColor: stateColor,
+                });
+                animateFillOpacity(event.feature, 0, 0.5, 260);
 
-            // Check if there are markers for this state
-            if (markersByState.has(stateName)) {
-                // Get all markers for this state
-                const markers = markersByState.get(stateName);
+                // Check if there are markers for this state
+                if (markersByState.has(stateName)) {
+                    // Get all markers for this state
+                    const markers = markersByState.get(stateName);
 
-                // Make each marker visible
-                for (const { marker } of markers) {
-                    marker.setVisible(true);
+                    // Make each marker visible
+                    for (const { marker } of markers) {
+                        marker.setVisible(true);
+                    }
                 }
-            }
-        });
+            });
 
-        map.data.addListener("mouseout", (event) => {
-            const stateName = event.feature.getProperty("name");
+            map.data.addListener("mouseout", (event) => {
+                const stateName = event.feature.getProperty("name");
+                animateFillOpacity(event.feature, 0.5, 0, 260);
 
-            // Check if there are markers for this state
-            if (markersByState.has(stateName)) {
-                // Get all markers for this state
-                const markers = markersByState.get(stateName);
+                // Check if there are markers for this state
+                if (markersByState.has(stateName)) {
+                    // Get all markers for this state
+                    const markers = markersByState.get(stateName);
 
-                // Make each marker invisible
-                for (const { marker } of markers) {
-                    marker.setVisible(false);
+                    // Make each marker invisible
+                    for (const { marker } of markers) {
+                        marker.setVisible(false);
+                    }
                 }
-            }
-        });
+            });
 
-        map.data.setStyle((feature) => {
-            return {
-                fillColor: "transparent",
-                strokeColor: "#000",
-                strokeWeight: 1,
-                fillOpacity: 0,
-            };
+            map.data.setStyle((feature) => {
+                return {
+                    fillColor: "transparent",
+                    strokeColor: "#000",
+                    strokeWeight: 1,
+                    fillOpacity: 0,
+                };
             });
         }
 
         initMapAsync();
-
         </script>
     </body>
 </html>
