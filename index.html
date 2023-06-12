@@ -125,9 +125,13 @@
                     map,
                     `${stylist.streetAddress}, ${stylist.city}, ${stylist.regionStateProvince}, ${stylist.postalZipCode}`,
                     `<div class="info-window">
+                        <h3>${stylist.firstName} ${stylist.lastName}</h3>
+                        <p>${stylist.pronouns}</p>
                         <h3>${stylist.businessName}</h3>
                         <p>${stylist.streetAddress}, ${stylist.city}, ${stylist.regionStateProvince}, ${stylist.postalZipCode}</p>
                         <p>Phone: ${stylist.phone}</p>
+                        <p>Email: ${stylist.email}</p>
+                        <a href='${stylist.websiteUrl}'>Website</a>
                         <p>${stylist.businessDescription}</p>
                     </div>`,
                     false
