@@ -47,186 +47,195 @@
     <body>
         <div id="map"></div>
         <script>
-            console.log('dev mode');
             async function fetchStylistsFromWixAPI() {
-                const response = await fetch("https://service-finder-api-proxy.herokuapp.com/stylistsAPI");
-                const data = await response.json();
-                console.log('wix data...', data);
-                return data;
+            const response = await fetch("https://service-finder-api-proxy.herokuapp.com/stylistsAPI");
+            const data = await response.json();
+            console.log('wix data...', data);
+            return data;
+        }
+
+        // Global variable for handling opening and closing windows
+        let openInfoWindow = null;
+
+        async function createMarkerFromAddress(map, address, content, setVisible = true) {
+            const geocoder = new google.maps.Geocoder();
+
+            const getLocationFromAddress = (address) => {
+                return new Promise((resolve, reject) => {
+                    geocoder.geocode({ address }, (results, status) => {
+                        if (status === "OK") {
+                            resolve(results[0].geometry.location);
+                        } else {
+                            reject(new Error(`Geocode failed for address: ${address}, status: ${status}`));
+                        }
+                    });
+                });
+            };
+
+            try {
+                const location = await getLocationFromAddress(address);
+                const marker = new google.maps.Marker({
+                    position: location,
+                    map: map,
+                    visible: setVisible,
+                    icon: 'https://lfranckx.github.io/hhng-service-finder/marker.png'
+                });
+
+                const infoWindow = new google.maps.InfoWindow({
+                    content: content,
+                });
+
+                marker.addListener("click", () => {
+                    if (openInfoWindow) {
+                        openInfoWindow.close();
+                    }
+                    infoWindow.open(map, marker);
+                    openInfoWindow = infoWindow;
+                });
+                return { marker, infoWindow };
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function initMapAsync() {
+            await new Promise((resolve) => {
+                window.initMap = () => {
+                    resolve();
+                };
+            });
+
+            const position = { lat: 37.0902, lng: -95.7129 };
+
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 4,
+                center: position,
+            });
+
+            // Load the US states GeoJSON data
+            map.data.loadGeoJson("https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json");
+
+            // Create an array for all markers within a state
+            const markersByState = new Map();
+
+            // Change the state color on mouseover
+            map.data.addListener("mouseover", async (event) => {
+                const stateName = event.feature.getProperty("name");
+                const stateColor = getRandomColor();
+                map.data.overrideStyle(event.feature, {
+                    fillColor: stateColor,
+                });
+                animateFillOpacity(event.feature, 0, 0.5, 260);
+
+                // Loop through all markers in the state to display business info
+                if (!markersByState.has(stateName)) {
+                    const stylists = await fetchStylistsFromWixAPI();
+                    // Filter stylists based on stateName
+                    const stateStylists = stylists.filter((stylist) => stylist.regionStateProvince === stateName);
+
+                    const markers = [];
+                    for (const stylist of stateStylists) {
+                        const address = `${stylist.streetAddress}, ${stylist.city}, ${stylist.regionStateProvince}, ${stylist.postalZipCode}`;
+
+                        const content = `
+                            <div class="info-window">
+                                <h3>${stylist.businessName}</h3>
+                                <p>${address}</p>
+                                <p>${                        stylist.pronouns}</p>
+                                <p>Phone: ${stylist.phone}</p>
+                                <p>Email: ${stylist.email}</p>
+                                <p>Instagram: ${stylist.instagramHandle}</p>
+                                <p>Website: <a href="${stylist.websiteUrl}" target="_blank">${stylist.websiteUrl}</a></p>
+                                <p>${stylist.businessDescription}</p>
+                            </div>`;
+
+                        const { marker, infoWindow } = await createMarkerFromAddress(
+                            map,
+                            address,
+                            content,
+                            false
+                        );
+                        if (marker) {
+                            markers.push({ marker, infoWindow });
+                        }
+                    }
+                    markersByState.set(stateName, markers);
+                }
+
+                const markers = markersByState.get(stateName);
+                for (const { marker } of markers) {
+                    marker.setVisible(true);
+                }
+            });
+
+            // Close Info Window when the state is clicked
+            map.data.addListener("click", (event) => {
+                const stateName = event.feature.getProperty("name");
+                const markers = markersByState.get(stateName);
+                if (markers) {
+                    for (const { marker, infoWindow } of markers) {
+                        infoWindow.close();
+                    }
+                }
+            });
+
+            // Restore the state color on mouseout
+            map.data.addListener("mouseout", (event) => {
+                const stateName = event.feature.getProperty("name");
+                animateFillOpacity(event.feature, 0.5, 0, 260);
+
+                const markers = markersByState.get(stateName);
+                if (markers) {
+                    for (const { marker } of markers) {
+                        marker.setVisible(false);
+                    }
+                }
+            });
+
+            const colors = ["#B57EDC", "#4A8122", "#FFF431", "#9B59D0", "#0097D8"];
+
+            // Function to return a random color
+            function getRandomColor() {
+                return colors[Math.floor(Math.random() * colors.length)];
             }
 
-            // Global variable for handling opening and closing windows
-            let openInfoWindow = null;
+            // Style the states
+            map.data.setStyle((feature) => {
+                return {
+                    fillColor: "transparent",
+                    strokeColor: "#000",
+                    strokeWeight: 1,
+                    fillOpacity: 0,
+                };
+            });
 
-            async function createMarkerFromAddress(map, address, content, setVisible = true) {
-                const geocoder = new google.maps.Geocoder();
-
-                const getLocationFromAddress = (address) => {
-                    return new Promise((resolve, reject) => {
-                        geocoder.geocode({ address }, (results, status) => {
-                            if (status === "OK") {
-                                resolve(results[0].geometry.location);
-                            } else {
-                                reject(new Error(`Geocode failed for address: ${address}, status: ${status}`));
-                            }
-                        });
-                    });
+            // Animate the fill opacity
+            function animateFillOpacity(feature, start, end, duration) {
+                const startTime = new Date().getTime();
+                const interpolate = (current, goal, progress) => {
+                    return current + (goal - current) * progress;
                 };
 
-                try {
-                    const location = await getLocationFromAddress(address);
-                    const marker = new google.maps.Marker({
-                        position: location,
-                        map: map,
-                        visible: setVisible,
-                        icon: 'https://lfranckx.github.io/hhng-service-finder/marker.png'
+                function step() {
+                    const currentTime = new Date().getTime();
+                    const progress = Math.min((currentTime - startTime) / duration, 1);
+                    const newOpacity = interpolate(start, end, progress);
+
+                    map.data.overrideStyle(feature, {
+                        fillOpacity: newOpacity,
                     });
 
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: content,
-                    });
-
-                    marker.addListener("click", () => {
-                        if (openInfoWindow) {
-                            openInfoWindow.close();
-                        }
-                        infoWindow.open(map, marker);
-                        openInfoWindow = infoWindow;
-                    });
-                    return { marker, infoWindow };
-                } catch (error) {
-                    console.error(error);
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    }
                 }
+
+                step();
             }
+        }
 
-            async function initMapAsync() {
-                await new Promise((resolve) => {
-                    window.initMap = () => {
-                        resolve();
-                    };
-                });
+        initMapAsync();
 
-                const position = { lat: 37.0902, lng: -95.7129 };
-
-                const map = new google.maps.Map(document.getElementById("map"), {
-                    zoom: 4,
-                    center: position,
-                });
-
-                // Load the US states GeoJSON data
-                map.data.loadGeoJson("https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json");
-
-                // Create an array for all markers within a state
-                const markersByState = new Map();
-
-                // Change the state color on mouseover
-                map.data.addListener("mouseover", async (event) => {
-                    const stateName = event.feature.getProperty("name");
-                    const stateColor = getRandomColor();
-                    map.data.overrideStyle(event.feature, {
-                        fillColor: stateColor,
-                    });
-                    animateFillOpacity(event.feature, 0, 0.5, 260);
-
-                    // Loop through all markers in the state to display business info
-                    if (!markersByState.has(stateName)) {
-                        const locations = await fetchStylistsFromWixAPI();
-                        // Filter locations based on stateName
-                        const stateLocations = locations.filter((location) => location.state === stateName);
-
-                        const markers = [];
-                        for (const location of locations) {
-                            const { marker, infoWindow } = await createMarkerFromAddress(
-                                map,
-                                location.address,
-                                `<div class="info-window">
-                                    <h3>${location.name}</h3>
-                                    <p>${location.address}</p>
-                                    <p>Phone: ${location.phone}</p>
-                                    <p>${location.description}</p>
-                                </div>`,
-                                false
-                            );
-                            if (marker) {
-                                markers.push({ marker, infoWindow });
-                            }
-                        }
-                        markersByState.set(stateName, markers);
-                    }
-
-                    const markers = markersByState.get(stateName);
-                    for (const { marker } of markers) {
-                        marker.setVisible(true);
-                    }
-                });
-
-                // Close Info Window when the state is clicked
-                map.data.addListener("click", (event) => {
-                    const stateName = event.feature.getProperty("name");
-                    const markers = markersByState.get(stateName);
-                    if (markers) {
-                        for (const { marker, infoWindow } of markers) {
-                            infoWindow.close();
-                        }
-                    }
-                });
-
-                // Restore the state color on mouseout
-                map.data.addListener("mouseout", (event) => {
-                    const stateName = event.feature.getProperty("name");
-                    animateFillOpacity(event.feature, 0.5, 0, 260);
-
-                    const markers = markersByState.get(stateName);
-                    if (markers) {
-                        for (const { marker } of markers) {
-                            marker.setVisible(false);
-                        }
-                    }
-                });
-
-                const colors = ["#B57EDC", "#4A8122", "#FFF431", "#9B59D0", "#0097D8"];
-
-                // Function to return a random color
-                function getRandomColor() {
-                    return colors[Math.floor(Math.random() * colors.length)];
-                }
-
-                // Style the states
-                map.data.setStyle((feature) => {
-                    return {
-                        fillColor: "transparent",
-                        strokeColor: "#000",
-                        strokeWeight: 1,
-                        fillOpacity: 0,
-                    };
-                });
-
-                // Animate the fill opacity
-                function animateFillOpacity(feature, start, end, duration) {
-                    const startTime = new Date().getTime();
-                    const interpolate = (current, goal, progress) => {
-                        return current + (goal - current) * progress;
-                    };
-
-                    function step() {
-                        const currentTime = new Date().getTime();
-                        const progress = Math.min((currentTime - startTime) / duration, 1);
-                        const newOpacity = interpolate(start, end, progress);
-
-                        map.data.overrideStyle(feature, {
-                            fillOpacity: newOpacity,
-                        });
-
-                        if (progress < 1) {
-                            requestAnimationFrame(step);
-                        }
-                    }
-
-                    step();
-                }
-            }
-
-            initMapAsync();
         </script>
     </body>
 </html>
