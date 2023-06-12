@@ -145,9 +145,10 @@
                         </div>
                         <h3>${stylist.businessName}</h3>
                         <p>${stylist.streetAddress}, ${stylist.city}, ${stylist.regionStateProvince}, ${stylist.postalZipCode}</p>
-                        <p>Phone: ${stylist.phone}</p>
-                        <p>Email: ${stylist.email}</p>
+                        <a href='tel:${stylist.phone}'>${stylist.phone}</a>
+                        <a href='mailto:${stylist.email}'>${stylist.email}</a>
                         <a class='website_url' href='${stylist.websiteUrl}'>Website</a>
+                        <p>About ${stylist.businessName}:</p>
                         <p>${stylist.businessDescription}</p>
                     </div>`,
                     false
