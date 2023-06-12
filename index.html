@@ -50,7 +50,7 @@
         async function fetchStylistsFromWixAPI() {
             const response = await fetch("https://service-finder-api-proxy.herokuapp.com/stylistsAPI");
             const data = await response.json();
-            console.log('wix data...', data);
+            // console.log('wix data...', data);
             return data.stylists; // get the stylists array from the response body
         }
 
