@@ -210,10 +210,13 @@
                     false
                 );
 
-                if (!markersByState.has(stylist.regionStateProvince)) {
-                    markersByState.set(stylist.regionStateProvince, []);
+                const stateName = stateAbbreviations.get(stylist.regionStateProvince) || stylist.regionStateProvince;
+
+                if (!markersByState.has(stateName)) {
+                    markersByState.set(stateName, []);
                 }
-                markersByState.get(stylist.regionStateProvince).push({ marker, infoWindow });
+
+                markersByState.get(stateName).push({ marker, infoWindow });
             }
 
             const colors = ["#B57EDC", "#4A8122", "#FFF431", "#9B59D0", "#0097D8"];
