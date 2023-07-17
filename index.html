@@ -130,6 +130,61 @@
             // Map to store all markers by state
             const markersByState = new Map();
 
+            // Map of US state abbreviations to full names
+            const stateAbbreviations = new Map([
+                ["AL", "Alabama"],
+                ["AK", "Alaska"],
+                ["AZ", "Arizona"],
+                ["AR", "Arkansas"],
+                ["CA", "California"],
+                ["CO", "Colorado"],
+                ["CT", "Connecticut"],
+                ["DE", "Delaware"],
+                ["FL", "Florida"],
+                ["GA", "Georgia"],
+                ["HI", "Hawaii"],
+                ["ID", "Idaho"],
+                ["IL", "Illinois"],
+                ["IN", "Indiana"],
+                ["IA", "Iowa"],
+                ["KS", "Kansas"],
+                ["KY", "Kentucky"],
+                ["LA", "Louisiana"],
+                ["ME", "Maine"],
+                ["MD", "Maryland"],
+                ["MA", "Massachusetts"],
+                ["MI", "Michigan"],
+                ["MN", "Minnesota"],
+                ["MS", "Mississippi"],
+                ["MO", "Missouri"],
+                ["MT", "Montana"],
+                ["NE", "Nebraska"],
+                ["NV", "Nevada"],
+                ["NH", "New Hampshire"],
+                ["NJ", "New Jersey"],
+                ["NM", "New Mexico"],
+                ["NY", "New York"],
+                ["NC", "North Carolina"],
+                ["ND", "North Dakota"],
+                ["OH", "Ohio"],
+                ["OK", "Oklahoma"],
+                ["OR", "Oregon"],
+                ["PA", "Pennsylvania"],
+                ["RI", "Rhode Island"],
+                ["SC", "South Carolina"],
+                ["SD", "South Dakota"],
+                ["TN", "Tennessee"],
+                ["TX", "Texas"],
+                ["UT", "Utah"],
+                ["VT", "Vermont"],
+                ["VA", "Virginia"],
+                ["WA", "Washington"],
+                ["WV", "West Virginia"],
+                ["WI", "Wisconsin"],
+                ["WY", "Wyoming"]
+            ]);
+
+
             // Fetch stylist data
             const stylists = await fetchStylistsFromWixAPI();
 
@@ -137,14 +192,14 @@
             for (const stylist of stylists) {
                 const { marker, infoWindow } = await createMarkerFromAddress(
                     map,
-                    `${stylist.streetAddress}, ${stylist.city}, ${stylist.regionStateProvince}, ${stylist.postalZipCode}`,
+                    `${stylist.streetAddress}, ${stylist.city}, ${stateAbbreviations.get(stylist.regionStateProvince) || stylist.regionStateProvince}, ${stylist.postalZipCode}`,
                     `<div class="info-window">
                         <div class='flex'>
                         <h3>${stylist.firstName} ${stylist.lastName}</h3>
                         <p>(${stylist.pronouns})</p>
                         </div>
                         <h3>${stylist.businessName}</h3>
-                        <p>${stylist.streetAddress}, ${stylist.city}, ${stylist.regionStateProvince}, ${stylist.postalZipCode}</p>
+                        <p>${stylist.streetAddress}, ${stylist.city}, ${stateAbbreviations.get(stylist.regionStateProvince) || stylist.regionStateProvince}, ${stylist.postalZipCode}</p>
                         <div><a href='tel:${stylist.phone}'>${stylist.phone}</a></div>
                         <div><a href='mailto:${stylist.email}'>${stylist.email}</a></div>
                         <div><a class='website_url' href='${stylist.websiteUrl}'>Website</a></div>
